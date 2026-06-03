@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "discovery-interview": {
+      "source": "parcadei/continuous-claude-v3",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/discovery-interview/SKILL.md",
+      "computedHash": "6f194cd10649bdcb62823f0ae3c43070dad725af451e9de8cc6a9b1404b98656"
+    }
+  }
+}
