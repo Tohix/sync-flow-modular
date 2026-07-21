@@ -1,15 +1,11 @@
 import {
   ConflictException,
-  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { eq } from 'drizzle-orm';
-import { DRIZZLE } from '../../../database/database.providers';
-import type { DrizzleDB } from '../../../database/database.providers';
-import { users } from '../../../database/schema/users.schema';
+import { AuthUserRepository } from '../repositories/auth-user.repository';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
@@ -37,18 +33,14 @@ export interface LoginResult {
 @Injectable()
 export class AuthService {
   constructor(
-    @Inject(DRIZZLE) private readonly db: DrizzleDB,
+    private readonly authUserRepository: AuthUserRepository,
     private readonly jwtService: JwtService,
   ) {}
 
   async register(dto: RegisterDto): Promise<SafeUser> {
     const email = this.normalizeEmail(dto.email);
 
-    const [existingUser] = await this.db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1);
+    const existingUser = await this.authUserRepository.findByEmail(email);
 
     if (existingUser) {
       throw new ConflictException('Email already registered');
@@ -56,27 +48,16 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(dto.password, BCRYPT_COST);
 
-    const [user] = await this.db
-      .insert(users)
-      .values({ email, password: hashedPassword })
-      .returning({
-        id: users.id,
-        email: users.email,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-      });
-
-    return user;
+    return this.authUserRepository.create({
+      email,
+      password: hashedPassword,
+    });
   }
 
   async login(dto: LoginDto): Promise<LoginResult> {
     const email = this.normalizeEmail(dto.email);
 
-    const [user] = await this.db
-      .select()
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1);
+    const user = await this.authUserRepository.findByEmail(email);
 
     const isPasswordValid = await bcrypt.compare(
       dto.password,
